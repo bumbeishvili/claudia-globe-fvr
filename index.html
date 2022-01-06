@@ -1,37 +1,82 @@
 <!DOCTYPE html>
 
 <html>
-
-<head>
-    <meta charset="UTF-8">
+  <head>
+    <meta charset="UTF-8" />
     <title>Chart</title>
-    <link rel="shortcut icon" type="image/x-icon" href="favicon.ico">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="shortcut icon" type="image/x-icon" href="favicon.ico" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="stylesheet" href="styles/index.css" />
-</head>
 
-<body translate="no">
+    <script src="//unpkg.com/three"></script>
+    <script src="//unpkg.com/three/examples/js/controls/TrackballControls.js"></script>
 
+    <script src="//unpkg.com/three-globe"></script>
+  </head>
+
+  <body translate="no">
     <div class="page-container">
-        <div id="graph-container"></div>
+      <div id="globeViz"></div>
     </div>
 
-    <script src="libs/d3.v7.min.js"></script>
-    <script src="scripts/d3chart.js"></script>
-
     <script>
-        let chart;
-        d3.json('data/data.json')
-            .then(data => {
-                chart = new Chart()
-                    .svgHeight(window.innerHeight - 30)
-                    .svgWidth(window.innerWidth - 30)
-                    .container('#graph-container')
-                    .data(data)
-                    .render()
-            })
+      const Globe = new ThreeGlobe()
+        .globeImageUrl(
+          "//unpkg.com/three-globe/example/img/earth-blue-marble.jpg"
+        )
+        .showGraticules(true)
+        .showAtmosphere(true)
+        .bumpImageUrl("//unpkg.com/three-globe/example/img/earth-topology.png");
+
+      // custom globe material
+      const globeMaterial = Globe.globeMaterial();
+      globeMaterial.bumpScale =10;
+      new THREE.TextureLoader().load(
+        "//unpkg.com/three-globe/example/img/earth-water.png",
+        (texture) => {
+          globeMaterial.specularMap = texture;
+          globeMaterial.specular = new THREE.Color("grey");
+          globeMaterial.shininess = 15;
+        }
+      );
+
+      const directionalLight = new THREE.DirectionalLight(0xffffff, 0.6);
+      directionalLight.position.set(1, 1, 1); // change light position to see the specularMap's effect
+
+      // Setup renderer
+      const renderer = new THREE.WebGLRenderer();
+      renderer.setSize(window.innerWidth-20, window.innerHeight-20);
+      document.getElementById("globeViz").appendChild(renderer.domElement);
+
+      // Setup scene
+      const scene = new THREE.Scene();
+      scene.add(Globe);
+      scene.add(new THREE.AmbientLight(0xbbbbbb));
+      scene.add(directionalLight);
+
+      // Setup camera
+      const camera = new THREE.PerspectiveCamera();
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      camera.position.z = 500;
+
+      // Add camera controls
+      const tbControls = new THREE.TrackballControls(
+        camera,
+        renderer.domElement
+      );
+      tbControls.minDistance = 101;
+      tbControls.rotateSpeed = 5;
+      tbControls.zoomSpeed = 0.8;
+
+      // Kick-off renderer
+      (function animate() {
+        // IIFE
+        // Frame cycle
+        tbControls.update();
+        renderer.render(scene, camera);
+        requestAnimationFrame(animate);
+      })();
     </script>
-
-</body>
-
+  </body>
 </html>
