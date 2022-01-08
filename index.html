@@ -21,23 +21,26 @@
     </div>
 
     <script>
-    
-
       // ======================= GLOBE ====================
       const world = Globe()
-        .globeImageUrl("./data/andromeda-high-mod.png")
+        .globeImageUrl("./data/andromeda-low-mod.png")
+        //("./data/andromeda-high-mod.png")
         .width(window.innerWidth - 40)
         .height(window.innerHeight - 40)
         .showGraticules(true)
         .atmosphereAltitude(0.25)
         .bumpImageUrl("//unpkg.com/three-globe/example/img/earth-topology.png")
 
-
         // ----------  TILES ----------
 
         .backgroundImageUrl(
           "//unpkg.com/three-globe/example/img/night-sky.png"
         )(document.getElementById("globeViz"));
+
+
+      setTimeout((d) => {
+        world.globeImageUrl("./data/andromeda-high-mod.png");
+      }, 5000)
 
       //====================== Rotations ===================
       const controls = world.controls();
