@@ -13,6 +13,8 @@
     <script src="//unpkg.com/three-render-objects"></script>
 
     <script src="//unpkg.com/globe.gl"></script>
+
+    const t
   </head>
 
   <body translate="no">
@@ -21,6 +23,19 @@
     </div>
 
     <script>
+      const N = 1;
+      const pickerMaterial = new THREE.MeshLambertMaterial({ color: "blue" });
+      pickerMaterial.side = THREE.DoubleSide;
+      const gData = [...Array(N).keys()].map(() => ({
+        lat: 41,
+        lng: 41,
+        alt: 0.1,
+        width: 30,
+        height: 30,
+        material: pickerMaterial,
+        color: ["red", "white", "blue", "green"][Math.round(Math.random() * 3)],
+      }));
+
       // ======================= GLOBE ====================
       const world = Globe()
         .globeImageUrl("./data/andromeda-low-mod.png")
@@ -30,6 +45,22 @@
         .showGraticules(true)
         .atmosphereAltitude(0.25)
         .bumpImageUrl("./data/topo.png")
+        .enablePointerInteraction(true)
+        .customLayerData(gData)
+        .onZoom((event, d, k) => {
+          console.log("zoom", event, d, k);
+        })
+        .customThreeObject((d) => {
+          const mesh = new THREE.Mesh(
+            new THREE.PlaneGeometry(d.width, d.height),
+            d.material
+          );
+          return mesh;
+        })
+        .customThreeObjectUpdate((obj, d) => {
+          Object.assign(obj.position, world.getCoords(d.lat, d.lng, d.alt));
+          obj.rotation.x = -Math.PI / 2;
+        })
 
         // ----------  TILES ----------
 
@@ -37,10 +68,13 @@
           "//unpkg.com/three-globe/example/img/night-sky.png"
         )(document.getElementById("globeViz"));
 
+      window.world = world;
+
+      console.log(world.__proto__);
 
       setTimeout((d) => {
         world.globeImageUrl("./data/andromeda-high-mod.png");
-      }, 5000)
+      }, 5000);
 
       //====================== Rotations ===================
       const controls = world.controls();
@@ -52,7 +86,56 @@
         controls.autoRotate = false;
       });
 
+      const material = world.globeMaterial();
+      const displacementTexture = new THREE.TextureLoader().load(
+        "./data/topo.png"
+      );
+      material.displacementMap = displacementTexture;
+      // material.wireframe = true;
+      material.displacementScale = 0; 
+
       console.log({ controls });
+
+      world.onGlobeReady(() =>
+        setTimeout(() => (world.controls().minDistance = 101))
+      );
+
+      fetch("./data/area.geojson")
+        .then((res) => res.json())
+        .then((countries) => {
+          console.log({ countries });
+          const features = countries.features[0].geometry.coordinates.map(d=>{
+            return {
+              type:'Feature',
+              geometry:{
+                type:'Polygon',
+                coordinates:[d]
+              }
+            }
+          })
+          
+          world
+            .hexPolygonsData(features)
+            .hexPolygonResolution(3)
+            .hexPolygonMargin(0.03)
+            .hexPolygonAltitude(0.001)
+            .hexPolygonColor(
+              () => 'rgba(0,0,255,0.5)',
+              
+            )
+        //     .hexPolygonLabel(
+        //       ({ properties: d }) => `
+        //   <b>${d.ADMIN} (${d.ISO_A2})</b> <br />
+        //   Population: <i>${d.POP_EST}</i>
+        // `
+        //     )
+        });
+
+      // (function moveSpheres() {
+      //   gData.forEach((d) => (d.lat += 0.2));
+      //   world.customLayerData(world.customLayerData());
+      //   requestAnimationFrame(moveSpheres);
+      // })();
     </script>
   </body>
 </html>
