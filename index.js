@@ -1,10 +1,19 @@
+let apiUrlResolution2HexGeoJsonTop = "./data/splittedAreaH3R2.json";   // Expects GEO JSON Structure of resolution 2 hexes, with occupancy rate property (0-1)
+let apiUrlResolution5HexJsonObject = ""
+
+
 let world = null;
 let displacementScale = 15;
 let hexPolygonResolution = 3;  // https://h3geo.org/docs/core-library/restable/
 let prevZoomState = {};
 let latestZoomState = { data: { lat: 0, lng: 0, altitude: 2.5 }, time: new Date() };
 let zoomTimeout = null;
-let landFeatures = null;
+let landHexes = null;
+
+let occupancyRatesHexGeojson = null;
+let currentPolygonType = "default"
+
+
 
 
 
@@ -18,6 +27,7 @@ listenEvents();
 
 function listenEvents() {
     document.addEventListener('imaginaryGlobeZoomEnd', zoomArgs => {
+        console.log({ zoomArgs })
         adjustVisibleHexPolygons(zoomArgs.detail)
     })
 }
@@ -83,7 +93,7 @@ function initWorld() {
 
     console.log('globe created')
     setTimeout((d) => {
-        world.globeImageUrl("./data/andromeda-high-mod.png");
+        // world.globeImageUrl("./data/andromeda-high-mod.png");
     }, 5000);
 
 
@@ -116,11 +126,13 @@ function initControls() {
             zoomTimeout = null;
         }
 
-        let timeoutTime = 100;
+        let timeoutTime = 500;
         zoomTimeOut = setTimeout(() => {
             const currentDate = new Date();
             const diff = currentDate - latestZoomState.time
             if (diff >= timeoutTime) {
+                console.log('zooming')
+
                 document.dispatchEvent(new CustomEvent('imaginaryGlobeZoomEnd', { detail: latestZoomState.data }));
             }
 
@@ -128,7 +140,7 @@ function initControls() {
     });
 
     world.onGlobeReady(() =>
-        setTimeout(() => (world.controls().minDistance = 101))
+        setTimeout(() => (world.controls().minDistance = 101.1))
     );
 
 
@@ -150,33 +162,35 @@ function initDisplacement() {
 function initLandAvailabilityLayer() {
     Promise.all(
         [
-            fetch("./data/splittedAreaData.json")
+            fetch(apiUrlResolution2HexGeoJsonTop)
                 .then((res) => res.json()),
-            fetch("./data/splittedAreaH3R2.json")
-                .then((res) => res.json()),
-            fetch("./data/splittedAreaH3R3.json")
+            fetch("./data/innerHexesRes3.json")
                 .then((res) => res.json()),
         ]
     )
         .then((data) => {
-            const countries = data[0]
-            const features = countries.features.filter(
-                (d) => !d.properties.inner
-            );
-            landFeatures = features;
+            landHexes = new Set(data[1])
+            console.log({ landHexes })
 
+
+            const occupancyRates = data[0];
+            occupancyRatesHexGeojson = occupancyRates;
             world
-                .hexPolygonsData(features)
+                .hexPolygonsData(occupancyRates.features)
                 .hexPolygonResolution(hexPolygonResolution)
-                .hexPolygonMargin(0.03)
+                .hexPolygonMargin(0.1)
                 .onHexPolygonHover(d => {
-                    console.log('hex hovered', d)
+                    // console.log('hex hovered', d)
                 })
                 .hexPolygonAltitude((d) => {
                     return 0.151;
                 })
                 .hexPolygonColor((d) => {
-                    return 'rgba(129,71,252,0.2)'
+                    if (d.properties.occupancy < 0.2) return "rgba(0,40,256,0.1)";
+                    if (d.properties.occupancy < 0.4) return "rgba(0,0,256,0.5)";
+                    if (d.properties.occupancy < 0.6) return "orange";
+                    if (d.properties.occupancy < 1) return "red";
+                    return 'black'
                 });
             //     .hexPolygonLabel(
             //       ({ properties: d }) => `
@@ -200,61 +214,115 @@ function adjustDisplacementScale(altitude) {
 
 function adjustVisibleHexPolygons({ lat, lng, altitude }) {
     if (!world) return;
-    return;
-    // if (JSON.stringify(prevZoomState) == JSON.stringify(latestZoomState.data)) {
-    //     console.log('same location');
-    //     return;
-    // } else {
-    //     console.log(JSON.stringify(prevZoomState), JSON.stringify(latestZoomState.data))
-    // }
 
     function geojsonGenerator({ polygonResolution, kRingCount }) {
         const centerHex = h3.geoToH3(lat, lng, polygonResolution); // https://h3geo.org/docs/core-library/restable
-        const kRing = h3.kRing(centerHex, kRingCount); // 10 Neighboring rings
-        const geojson = geojsonRewind(h3SetToFeatureCollection(kRing));
-        geojson.features.forEach((d) => { d.geometry.coordinates[0].reverse() })
+        const kRing = h3.kRing(centerHex, kRingCount)
+            .map(d => {
+                return {
+                    [d]: Math.random() / 4.5
+                }
+            })
+            .filter((h) =>
+                landHexes.has(h3.h3ToParent(Object.keys(h)[0], 3))
+            )
+
+        const hKeys = kRing.map(h => Object.keys(h)[0]);
+
+        // 10 Neighboring rings
+
+        const geojson = geojsonRewind(h3SetToFeatureCollection(hKeys));
+        geojson.features.forEach((d,i) => {
+            d.geometry.coordinates[0].reverse()
+            d.properties.occupancy = kRing[i][d.id]
+        })
+        return geojson;
+    }
+
+    function mediumGenerator({ polygonResolution, kRingCount }) {
+        const centerHex = h3.geoToH3(lat, lng, polygonResolution); // https://h3geo.org/docs/core-library/restable
+        const kRing = h3.kRing(centerHex, kRingCount) // 10 Neighboring rings
+            .map(d => {
+                return {
+                    [d]: Math.random() / 4.5
+                }
+            })
+            .filter((h) =>
+                landHexes.has(h3.h3ToParent(Object.keys(h)[0], 3))
+            )
+
+        const hKeys = kRing.map(h => Object.keys(h)[0]);
+
+
+        const geojson = geojsonRewind(h3SetToFeatureCollection(hKeys));
+        geojson.features.forEach((d, i) => {
+            d.geometry.coordinates[0].reverse()
+            d.properties.occupancy = kRing[i][d.id]
+        })
         return geojson;
     }
 
     function worldGeoJsonGenerator() {
-
+        return occupancyRatesHexGeojson;
     }
 
     const configs = [
         {
-            minZoom: 0.01,
+            type: 'min',
+            minZoom: 0.0,
             maxZoom: 0.05,
-            polygonResolution: 7,
-            kRingCount: 40,
-            geojsonGenerator: geojsonGenerator
+            polygonResolution: 6,
+            kRingCount: 25,
+            altitude: 0.00001,
+            geojsonGenerator: geojsonGenerator,
+            hexPolygonColor: (() => Math.random() > 0.5 ? '#FF2D2E' : "rgba(0,255,255,0.2)")
         },
         {
+            type: 'medium',
             minZoom: 0.05,
             maxZoom: displacementScale / 100,
             polygonResolution: 5,
-            kRingCount: 40,
-            geojsonGenerator: geojsonGenerator
+            kRingCount: 25,
+            altitude: 0.0001,
+            geojsonGenerator: mediumGenerator,
+            hexPolygonColor: ((d) => {
+                if (d.properties.occupancy < 0.2) return "rgba(0,0,256,0.1)";
+                if (d.properties.occupancy < 0.4) return "rgba(0,0,256,0.6)";
+                if (d.properties.occupancy < 0.6) return "orange";
+                if (d.properties.occupancy < 1) return "red";
+                return 'black'
+            })
         },
-        // {
-        //     minZoom: displacementScale / 100,
-        //     maxZoom: 40,
-        //     polygonResolution: 5,
-        //     kRingCount: 40,
-        //     geojsonGenerator: geojsonGenerator
-        // },
+        {
+            type: 'default',
+            minZoom: displacementScale / 100,
+            maxZoom: 40,
+            altitude: 0.151,
+            polygonResolution: 3,
+            geojsonGenerator: worldGeoJsonGenerator,
+            hexPolygonColor: ((d) => {
+                if (d.properties.occupancy < 0.2) return "rgba(0,0,256,0.1)";
+                if (d.properties.occupancy < 0.4) return "rgba(0,0,256,0.6)";
+                if (d.properties.occupancy < 0.6) return "orange";
+                if (d.properties.occupancy < 1) return "red";
+                return 'black'
+            })
+        },
     ]
 
     configs.forEach(config => {
-        if (altitude > config.minZoom && altitude <= config.maxZoom) {
+        if (config.type == "default" && currentPolygonType == "default") return;
+
+        if (altitude >= config.minZoom && altitude <= config.maxZoom) {
+            console.log('generating', altitude, config.altitude)
+            currentPolygonType = config.type;
             const geojson = config.geojsonGenerator(config)
             world
                 .hexPolygonsData(geojson.features)
                 .hexPolygonResolution(config.polygonResolution)
                 .hexPolygonMargin(0.03)
-                .hexPolygonAltitude((d) => {
-                    return 0.001;
-                })
-                .hexPolygonColor(() => Math.random() > 0.5 ? 'rgb(0,60,115)' : "rgba(0,255,255,0.2)");
+                .hexPolygonAltitude(config.altitude)
+                .hexPolygonColor(config.hexPolygonColor)
         }
     })
 
