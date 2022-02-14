@@ -1,6 +1,6 @@
-let apiUrlResolution2HexGeoJsonTop = "./data/splittedAreaH3R2.json";   // Expects GEO JSON Structure of resolution 2 hexes, with occupancy rate property (0-1)
-let apiUrlResolution5HexJsonObject = ""
-let apiUrlResolution6HexJsonObject = ""
+let apiUrlResolution2HexGeoJsonTop = "./data/innerHexesRes2.json";   // Expects GEO JSON Structure of resolution 2 hexes, with occupancy rate property (0-1)
+let apiUrlResolution5HexJsonObject = "./data/resolution5HexJsonObject.json"
+let apiUrlResolution6HexJsonObject = "./data/resolution6HexJsonObject.json"
 
 
 let world = null;
@@ -153,7 +153,7 @@ function initControls() {
     });
 
     world.onGlobeReady(() =>
-        setTimeout(() => (world.controls().minDistance = 101.1))
+        setTimeout(() => (world.controls().minDistance = 101.1/*100.2*/))
     );
 
 
@@ -186,8 +186,17 @@ function initLandAvailabilityLayer() {
             console.log({ landHexes })
 
 
-            const occupancyRates = data[0];
-            occupancyRatesHexGeojson = occupancyRates;
+            const innerHexesRes2 = data[0];
+
+            const map = new Map(innerHexesRes2.map((d) => [Object.keys(d)[0], Object.values(d)[0]]))
+            const occupancyRates = h3SetToFeatureCollection(
+               innerHexesRes2.map((d) => Object.keys(d)[0]),
+                (d) => ({
+                    occupancy: map.get(d)
+                })
+            );
+           
+
             world
                 .hexPolygonsData(occupancyRates.features)
                 .hexPolygonResolution(hexPolygonResolution)
@@ -253,7 +262,8 @@ function adjustVisibleHexPolygons({ lat, lng, altitude }) {
     if (!world) return;
 
     function geojsonGenerator({ lat, lng }) {
-        let url = `./data/resolution6HexJsonObject.json?lat=${lat}&lng=${lng}`
+
+        let url = `${apiUrlResolution6HexJsonObject}?lat=${lat}&lng=${lng}`
         if (prevUrl == url) {
             return new Promise((res) => res(prevData));
         }
@@ -287,7 +297,7 @@ function adjustVisibleHexPolygons({ lat, lng, altitude }) {
 
 
     function mediumGenerator({ lat, lng }) {
-        let url = `./data/resolution5HexJsonObject.json?lat=${lat}&lng=${lng}`
+        let url = `${apiUrlResolution5HexJsonObject}?lat=${lat}&lng=${lng}`
         if (prevUrl == url) {
             return new Promise((res) => res(prevData));
         }
@@ -329,14 +339,14 @@ function adjustVisibleHexPolygons({ lat, lng, altitude }) {
             maxZoom: 0.05,
             polygonResolution: 6,
             kRingCount: 25,
-            altitude: 0.00001,
+            altitude: 0.0000001,
             geojsonGenerator: geojsonGenerator,
             hexPolygonLabel: d => `<div style="width:200px;background-color:#191932;padding:15px;border-radius:5px;color:white">
             ${d.properties.occupancy ? "Land is SOLD!" : "Available for sale! </br> </br> Click to select one piece.  </br> </br> Shift + Click to select multiple! "}
              </div>`
             ,
-            hexPolygonColor: ((d) =>{
-                if(selectedLandPieces[d.id]){
+            hexPolygonColor: ((d) => {
+                if (selectedLandPieces[d.id]) {
                     return '#56E39F'
                 }
                 return d.properties.occupancy ? '#FF2D2E' : "rgba(0,255,255,0.2)"
