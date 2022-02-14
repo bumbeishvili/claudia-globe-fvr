@@ -19,15 +19,11 @@ let selectedLandPieces = {};
 
 
 
-
-
 initWorld()
 initControls()
 initDisplacement();
 initLandAvailabilityLayer()
 listenEvents();
-
-
 
 function listenEvents() {
     document.addEventListener('imaginaryGlobeZoomEnd', zoomArgs => {
@@ -195,6 +191,8 @@ function initLandAvailabilityLayer() {
                     occupancy: map.get(d)
                 })
             );
+
+            occupancyRatesHexGeojson = occupancyRates;
            
 
             world
