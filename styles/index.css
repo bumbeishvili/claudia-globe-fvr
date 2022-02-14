@@ -1,4 +1,66 @@
 body {
   background-color: black;
+  overflow: hidden;
+  margin: 0px;
 }
 
+
+.messages {
+  position: fixed;
+  color: white;
+  z-index: 9999;
+  font-family: Arial, Helvetica, sans-serif;
+  background-color: #191932;
+  padding: 20px;
+  top: 10px;
+  left: 10px;
+  border-radius: 5px;
+  max-width: 240px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.action-buttons {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  min-height: 100px;
+  align-content: space-between;
+  justify-content: space-between;
+}
+
+.action-button {
+  padding: 10px;
+  font-weight: bold;
+  cursor: pointer;
+  border-radius: 5px;
+  background-color: #191932;
+  color: white;
+  outline: none;
+  border: none;
+  opacity: 0.8;
+  display: none;
+}
+
+.action-button:hover {
+  opacity: 1;
+}
+
+.action-button.buy {
+  background-color: #56E39F;
+  color: #191932;
+}
+
+.scene-tooltip {
+  user-select: none;
+  /* CSS3 (little to no support) */
+  -ms-user-select: none;
+  /* IE 10+ */
+  -moz-user-select: none;
+  /* Gecko (Firefox) */
+  -webkit-user-select: none;
+  /* Webkit (Safari, Chrome) */
+}
