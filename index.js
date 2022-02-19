@@ -25,6 +25,13 @@ initDisplacement();
 initLandAvailabilityLayer()
 listenEvents();
 
+function clearSelection() {
+    selectedLandPieces = {};
+    checkButtonVisibility();
+    showMessage("Selection Cleared!", 1000)
+}
+
+
 function listenEvents() {
     document.addEventListener('imaginaryGlobeZoomEnd', zoomArgs => {
         console.log({ zoomArgs })
@@ -37,9 +44,16 @@ function listenEvents() {
     })
 
     document.querySelector('.action-button.clear').addEventListener('click', () => {
-        selectedLandPieces = {};
-        checkButtonVisibility();
-        showMessage("Selection Cleared!", 1000)
+        clearSelection()
+    })
+
+    document.querySelector('.action-button.reset').addEventListener('click', () => {
+        const controls = world.controls();
+        controls.autoRotate = true;
+        controls.autoRotateSpeed = 1;
+        clearSelection();
+        controls.reset()
+        console.log('reset')
     })
 }
 
@@ -121,10 +135,14 @@ function initControls() {
     const controls = world.controls();
     controls.autoRotate = true;
     controls.autoRotateSpeed = 1;
+    controls.saveState();
+    
+    
 
     // stop autorotate after the first interaction
     controls.addEventListener("start", function () {
         controls.autoRotate = false;
+        d3.select('.reset').style('display', 'block')
     });
 
 
@@ -186,14 +204,14 @@ function initLandAvailabilityLayer() {
 
             const map = new Map(innerHexesRes2.map((d) => [Object.keys(d)[0], Object.values(d)[0]]))
             const occupancyRates = h3SetToFeatureCollection(
-               innerHexesRes2.map((d) => Object.keys(d)[0]),
+                innerHexesRes2.map((d) => Object.keys(d)[0]),
                 (d) => ({
                     occupancy: map.get(d)
                 })
             );
 
             occupancyRatesHexGeojson = occupancyRates;
-           
+
 
             world
                 .hexPolygonsData(occupancyRates.features)

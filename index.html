@@ -24,14 +24,13 @@
     </div>
     <div class="messages">Loading data...</div>
     <div class="action-buttons">
+      <button class="action-button reset">Reset View</button>
       <button class="action-button buy">Purchase Selected</button>
       <button class="action-button clear">Clear Selection</button>
     </div>
     <script src="./index.js"></script>
     <script>
       function onLandBuyInitiation({ hexArr }) {
-
-        
         d3.select(".messages")
           .html(
             `User Successfully Initiated Land Buying Intention
@@ -50,8 +49,6 @@
           d3.select(".messages").style("opacity", 0);
         }, 5000);
       }
-
-     
     </script>
   </body>
 </html>

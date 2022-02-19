@@ -42,7 +42,13 @@ body {
   outline: none;
   border: none;
   opacity: 0.8;
+  margin:10px;
   display: none;
+}
+
+.action-button.reset{
+  /* display: flex; */
+  justify-content: center;
 }
 
 .action-button:hover {
